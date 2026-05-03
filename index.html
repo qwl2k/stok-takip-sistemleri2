@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-<sccript src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <meta charset="UTF-8">
   <title>Atölye Stok Takip Pro</title>
   <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -121,13 +121,11 @@
 <script>
 const SUPABASE_URL = "https://biflplzsimhotbqydqqf.supabase.co";
 const SUPABASE_KEY = "sb_publishable_3dC_1nzaTnrIHHBt0Y-NhQ_7kryfx_7";
-
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let aktif = JSON.parse(localStorage.getItem("aktifKullanici")) || null;
 let stoklar = [];
 let projeler = [];
-
 let kullanicilar = [
   { user: "admin", pass: "1234", rol: "admin" },
   { user: "user", pass: "1234", rol: "user" }
@@ -140,7 +138,6 @@ function kodUret(){
 function giris(){
   const user = document.getElementById("loginUser").value.trim();
   const pass = document.getElementById("loginPass").value.trim();
-
   const bulunan = kullanicilar.find(k => k.user === user && k.pass === pass);
 
   if(!bulunan){
@@ -157,13 +154,7 @@ async function panelAc(){
   document.getElementById("login").style.display = "none";
   document.getElementById("panel").style.display = "block";
   document.getElementById("aktifKullanici").innerText = aktif.user + " / " + aktif.rol;
-
-  if(aktif.rol !== "admin"){
-    document.getElementById("adminBtn").style.display = "none";
-  } else {
-    document.getElementById("adminBtn").style.display = "inline-block";
-  }
-
+  document.getElementById("adminBtn").style.display = aktif.rol === "admin" ? "inline-block" : "none";
   await verileriCek();
 }
 
@@ -185,12 +176,12 @@ async function verileriCek(){
   const projeRes = await db.from("projeler").select("*").order("id", { ascending: false });
 
   if(stokRes.error){
-    alert("Stoklar çekilemedi: " + stokRes.error.message);
+    alert("Stok hatası: " + stokRes.error.message);
     return;
   }
 
   if(projeRes.error){
-    alert("Projeler çekilemedi: " + projeRes.error.message);
+    alert("Proje hatası: " + projeRes.error.message);
     return;
   }
 
@@ -246,9 +237,7 @@ async function stokDegistir(i, miktar){
   let yeniAdet = stok.adet + miktar;
   if(yeniAdet < 0) yeniAdet = 0;
 
-  const { error } = await db.from("stoklar")
-    .update({ adet: yeniAdet })
-    .eq("id", stok.id);
+  const { error } = await db.from("stoklar").update({ adet: yeniAdet }).eq("id", stok.id);
 
   if(error){
     alert("Güncelleme hatası: " + error.message);
@@ -266,9 +255,7 @@ async function stokSil(i){
 
   if(!confirm("Bu stoğu silmek istiyor musun?")) return;
 
-  const { error } = await db.from("stoklar")
-    .delete()
-    .eq("id", stoklar[i].id);
+  const { error } = await db.from("stoklar").delete().eq("id", stoklar[i].id);
 
   if(error){
     alert("Silme hatası: " + error.message);
@@ -317,10 +304,7 @@ async function projeEkle(){
     return;
   }
 
-  const { error } = await db.from("projeler").insert({
-    ad,
-    sorumlu
-  });
+  const { error } = await db.from("projeler").insert({ ad, sorumlu });
 
   if(error){
     alert("Proje ekleme hatası: " + error.message);
@@ -333,7 +317,48 @@ async function projeEkle(){
   await verileriCek();
 }
 
-function projeGoster(){
+async function stoguProjeyeBagla(){
+  const projeId = Number(document.getElementById("projeSec").value);
+  const stokId = Number(document.getElementById("stokSec").value);
+  const adet = Number(document.getElementById("bagAdet").value);
+  const stok = stoklar.find(s => s.id === stokId);
+
+  if(!projeId || !stok || adet <= 0){
+    alert("Alanları doğru doldur.");
+    return;
+  }
+
+  if(stok.adet < adet){
+    alert("Yeterli stok yok.");
+    return;
+  }
+
+  const { error: bagError } = await db.from("proje_stoklari").insert({
+    proje_id: projeId,
+    stok_id: stok.id,
+    stok_adi: stok.isim,
+    adet: adet
+  });
+
+  if(bagError){
+    alert("Projeye stok bağlama hatası: " + bagError.message);
+    return;
+  }
+
+  const { error: stokError } = await db.from("stoklar")
+    .update({ adet: stok.adet - adet })
+    .eq("id", stok.id);
+
+  if(stokError){
+    alert("Stok azaltma hatası: " + stokError.message);
+    return;
+  }
+
+  document.getElementById("bagAdet").value = "";
+  await verileriCek();
+}
+
+async function projeGoster(){
   document.getElementById("projeSec").innerHTML = projeler.map(p =>
     `<option value="${p.id}">${p.ad}</option>`
   ).join("");
@@ -342,24 +367,34 @@ function projeGoster(){
     `<option value="${s.id}">${s.isim} / ${s.adet} adet</option>`
   ).join("");
 
-  document.getElementById("projeListe").innerHTML = projeler.map(p => `
-    <div class="project-card">
-      <h3>${p.ad}</h3>
-      <p>Sorumlu: ${p.sorumlu}</p>
-    </div>
-  `).join("");
-}
+  const { data, error } = await db.from("proje_stoklari").select("*");
 
-async function stoguProjeyeBagla(){
-  alert("Bu özellik için üçüncü tablo lazım: proje_stoklari. Onu birazdan ekleyeceğiz.");
+  const baglar = error ? [] : data || [];
+
+  document.getElementById("projeListe").innerHTML = projeler.map(p => {
+    const projeBaglari = baglar.filter(b => b.proje_id === p.id);
+
+    return `
+      <div class="project-card">
+        <h3>${p.ad}</h3>
+        <p>Sorumlu: ${p.sorumlu}</p>
+        <h4>Bağlı Stoklar</h4>
+        ${
+          projeBaglari.length
+          ? projeBaglari.map(b => `<p>${b.stok_adi} - ${b.adet} adet</p>`).join("")
+          : "<p>Henüz stok bağlanmadı.</p>"
+        }
+      </div>
+    `;
+  }).join("");
 }
 
 function kullaniciEkle(){
-  alert("Gerçek kullanıcı sistemi için Supabase Auth bağlamamız lazım. Sonraki level.");
+  alert("Gerçek kullanıcı sistemi için sıradaki adım Supabase Auth.");
 }
 
 function kullaniciGoster(){
-  document.getElementById("kullaniciListe").innerHTML = kullanicilar.map((k, i) => `
+  document.getElementById("kullaniciListe").innerHTML = kullanicilar.map(k => `
     <tr>
       <td>${k.user}</td>
       <td>${k.rol}</td>
@@ -416,3 +451,6 @@ if(aktif){
   panelAc();
 }
 </script>
+
+</body>
+</html>
