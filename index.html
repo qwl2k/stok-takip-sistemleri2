@@ -1,1 +1,75 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>Atölye Stok Sistemi</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
 
+<body>
+
+<h1 style="text-align:center;">Atölye Stok Takip</h1>
+
+<div style="text-align:center; margin:20px;">
+  <input id="isim" placeholder="Malzeme adı">
+  <input id="adet" type="number" placeholder="Adet">
+  <button onclick="ekle()">Ekle</button>
+</div>
+
+<table border="1" style="margin:auto; width:60%; text-align:center;">
+  <thead>
+    <tr>
+      <th>Ad</th>
+      <th>Adet</th>
+      <th>Sil</th>
+    </tr>
+  </thead>
+  <tbody id="liste"></tbody>
+</table>
+
+<script>
+let veriler = JSON.parse(localStorage.getItem("stok")) || []
+
+function kaydet(){
+  localStorage.setItem("stok", JSON.stringify(veriler))
+}
+
+function ekle(){
+  let isim = document.getElementById("isim").value
+  let adet = document.getElementById("adet").value
+
+  if(!isim || !adet){
+    alert("Boş bırakma")
+    return
+  }
+
+  veriler.push({isim, adet})
+  kaydet()
+  goster()
+}
+
+function sil(index){
+  veriler.splice(index,1)
+  kaydet()
+  goster()
+}
+
+function goster(){
+  let html = ""
+  veriler.forEach((v,i)=>{
+    html += `
+      <tr>
+        <td>${v.isim}</td>
+        <td>${v.adet}</td>
+        <td><button onclick="sil(${i})">X</button></td>
+      </tr>
+    `
+  })
+  document.getElementById("liste").innerHTML = html
+}
+
+goster()
+</script>
+
+</body>
+</html>
