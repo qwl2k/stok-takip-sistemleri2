@@ -1,64 +1,162 @@
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: linear-gradient(135deg, #0f172a, #1e293b);
-  color: white;
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <title>Atölye Stok Takip</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="login">
+  <div class="login-card">
+    <h1>Atölye Stok Takip</h1>
+    <p>Admin paneline giriş yap</p>
+    <input id="user" placeholder="Kullanıcı adı">
+    <input id="pass" type="password" placeholder="Şifre">
+    <button onclick="giris()">Giriş Yap</button>
+    <small>Demo: admin / 1234</small>
+  </div>
+</div>
+
+<div id="panel" style="display:none;">
+  <header>
+    <h1>Atölye Stok Paneli</h1>
+    <button onclick="cikis()">Çıkış</button>
+  </header>
+
+  <section class="stats">
+    <div><span>Toplam Malzeme</span><b id="toplam">0</b></div>
+    <div><span>Kritik Stok</span><b id="kritik">0</b></div>
+    <div><span>Kategori</span><b id="kategoriSayisi">0</b></div>
+  </section>
+
+  <section class="form-box">
+    <input id="isim" placeholder="Malzeme adı">
+    <input id="kategori" placeholder="Kategori">
+    <input id="adet" type="number" placeholder="Adet">
+    <input id="min" type="number" placeholder="Kritik sınır">
+    <button onclick="ekle()">Malzeme Ekle</button>
+  </section>
+
+  <section class="search-box">
+    <input id="arama" oninput="goster()" placeholder="Kod, isim veya kategori ara...">
+  </section>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Kod</th>
+        <th>Malzeme</th>
+        <th>Kategori</th>
+        <th>Adet</th>
+        <th>Durum</th>
+        <th>Sil</th>
+      </tr>
+    </thead>
+    <tbody id="liste"></tbody>
+  </table>
+</div>
+
+<script>
+let stok = JSON.parse(localStorage.getItem("stok")) || [];
+
+function kaydet(){
+  localStorage.setItem("stok", JSON.stringify(stok));
 }
 
-h1 {
-  margin-top: 20px;
+function kodUret(){
+  return "STK-" + Math.floor(10000000 + Math.random() * 90000000);
 }
 
-input {
-  padding: 10px;
-  margin: 5px;
-  border-radius: 8px;
-  border: none;
-  outline: none;
+function giris(){
+  const user = document.getElementById("user").value;
+  const pass = document.getElementById("pass").value;
+
+  if(user === "admin" && pass === "1234"){
+    document.getElementById("login").style.display = "none";
+    document.getElementById("panel").style.display = "block";
+    goster();
+  } else {
+    alert("Hatalı giriş.");
+  }
 }
 
-button {
-  padding: 10px 15px;
-  border: none;
-  border-radius: 8px;
-  background: #38bdf8;
-  color: black;
-  cursor: pointer;
-  font-weight: bold;
+function cikis(){
+  document.getElementById("panel").style.display = "none";
+  document.getElementById("login").style.display = "flex";
 }
 
-button:hover {
-  background: #0ea5e9;
+function ekle(){
+  const isim = document.getElementById("isim").value.trim();
+  const kategori = document.getElementById("kategori").value.trim();
+  const adet = Number(document.getElementById("adet").value);
+  const min = Number(document.getElementById("min").value);
+
+  if(!isim || !kategori || adet < 0 || min < 0){
+    alert("Tüm alanları doğru doldur.");
+    return;
+  }
+
+  stok.unshift({
+    kod: kodUret(),
+    isim,
+    kategori,
+    adet,
+    min
+  });
+
+  kaydet();
+
+  document.getElementById("isim").value = "";
+  document.getElementById("kategori").value = "";
+  document.getElementById("adet").value = "";
+  document.getElementById("min").value = "";
+
+  goster();
 }
 
-table {
-  border-collapse: collapse;
-  background: rgba(255,255,255,0.05);
-  border-radius: 10px;
-  overflow: hidden;
+function sil(i){
+  if(confirm("Bu malzemeyi silmek istiyor musun?")){
+    stok.splice(i, 1);
+    kaydet();
+    goster();
+  }
 }
 
-th, td {
-  padding: 12px;
+function goster(){
+  const arama = document.getElementById("arama")?.value.toLowerCase() || "";
+
+  const filtreli = stok.filter(x =>
+    x.kod.toLowerCase().includes(arama) ||
+    x.isim.toLowerCase().includes(arama) ||
+    x.kategori.toLowerCase().includes(arama)
+  );
+
+  document.getElementById("liste").innerHTML = filtreli.map((x, i) => {
+    const kritik = x.adet <= x.min;
+    return `
+      <tr class="${kritik ? "low-row" : ""}">
+        <td>${x.kod}</td>
+        <td>${x.isim}</td>
+        <td>${x.kategori}</td>
+        <td>${x.adet}</td>
+        <td>
+          <span class="${kritik ? "badge danger" : "badge good"}">
+            ${kritik ? "Kritik" : "Yeterli"}
+          </span>
+        </td>
+        <td><button class="delete" onclick="sil(${stok.indexOf(x)})">Sil</button></td>
+      </tr>
+    `;
+  }).join("");
+
+  document.getElementById("toplam").innerText = stok.length;
+  document.getElementById("kritik").innerText = stok.filter(x => x.adet <= x.min).length;
+  document.getElementById("kategoriSayisi").innerText = new Set(stok.map(x => x.kategori)).size;
 }
 
-th {
-  background: #38bdf8;
-  color: black;
-}
+goster();
+</script>
 
-tr:nth-child(even) {
-  background: rgba(255,255,255,0.05);
-}
-
-tr:hover {
-  background: rgba(255,255,255,0.1);
-}
-
-button {
-  transition: 0.2s;
-}
-
-button:active {
-  transform: scale(0.95);
-}
+</body>
+</html>
