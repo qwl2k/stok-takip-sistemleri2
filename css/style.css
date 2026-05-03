@@ -5,24 +5,28 @@ body {
   color: white;
 }
 
+.hidden {
+  display: none !important;
+}
+
 #login {
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
-  background: radial-gradient(circle, #1e3a8a, #020617);
+  background: radial-gradient(circle, #1d4ed8, #020617);
 }
 
 .login-card {
-  width: 350px;
-  background: rgba(15, 23, 42, 0.95);
-  padding: 30px;
-  border-radius: 22px;
-  box-shadow: 0 0 40px rgba(0,0,0,.5);
+  width: 360px;
+  background: rgba(15, 23, 42, .96);
+  padding: 32px;
+  border-radius: 24px;
+  box-shadow: 0 0 50px rgba(0,0,0,.55);
   text-align: center;
 }
 
-input {
+input, select, button {
   width: 100%;
   box-sizing: border-box;
   padding: 13px;
@@ -33,9 +37,6 @@ input {
 }
 
 button {
-  padding: 13px 18px;
-  border: none;
-  border-radius: 12px;
   background: #38bdf8;
   color: #00111a;
   font-weight: bold;
@@ -50,43 +51,63 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 24px 40px;
   background: #020617;
+  padding: 24px 40px;
   border-bottom: 1px solid #1e293b;
+}
+
+header p {
+  color: #94a3b8;
+}
+
+nav {
+  display: flex;
+  gap: 10px;
+  padding: 16px 40px;
+  background: #111827;
+}
+
+nav button {
+  max-width: 180px;
 }
 
 .stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 18px;
   padding: 25px 40px;
 }
 
-.stats div {
+.stats div, .chart-box, .project-card {
   background: #111827;
-  padding: 22px;
-  border-radius: 20px;
   border: 1px solid #1f2937;
+  border-radius: 20px;
+  padding: 22px;
 }
 
 .stats span {
-  display: block;
   color: #94a3b8;
+  display: block;
 }
 
 .stats b {
   font-size: 34px;
 }
 
-.form-box, .search-box {
+.chart-box {
+  margin: 0 40px 25px;
+  overflow-x: auto;
+}
+
+.form-box {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 12px;
-  padding: 0 40px 20px;
+  padding: 20px 40px 0;
 }
 
 .search-box {
-  grid-template-columns: 1fr;
+  padding: 10px 40px 20px;
 }
 
 table {
@@ -105,12 +126,17 @@ th, td {
 }
 
 th {
-  color: #38bdf8;
   background: #020617;
+  color: #38bdf8;
+}
+
+td button {
+  width: auto;
+  padding: 8px 12px;
 }
 
 .low-row {
-  background: rgba(239, 68, 68, .12);
+  background: rgba(239, 68, 68, .13);
 }
 
 .badge {
@@ -135,9 +161,23 @@ th {
   color: #fecaca;
 }
 
-@media (max-width: 800px) {
+.project-list {
+  display: grid;
+  gap: 18px;
+  padding: 20px 40px 40px;
+}
+
+@media (max-width: 900px) {
   .stats, .form-box {
     grid-template-columns: 1fr;
+  }
+
+  nav {
+    flex-direction: column;
+  }
+
+  nav button {
+    max-width: none;
   }
 
   header {
