@@ -119,20 +119,19 @@
 </div>
 
 <script>
-let stoklar = JSON.parse(localStorage.getItem("stoklar")) || [];
-let projeler = JSON.parse(localStorage.getItem("projeler")) || [];
-let kullanicilar = JSON.parse(localStorage.getItem("kullanicilar")) || [
+const SUPABASE_URL = "https://biflplzsimhotbqydqqf.supabase.co";
+const SUPABASE_KEY = "sb_publishable_3dC_1nzaTnrIHHBt0Y-NhQ_7kryfx_7";
+
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let aktif = JSON.parse(localStorage.getItem("aktifKullanici")) || null;
+let stoklar = [];
+let projeler = [];
+
+let kullanicilar = [
   { user: "admin", pass: "1234", rol: "admin" },
   { user: "user", pass: "1234", rol: "user" }
 ];
-
-let aktif = JSON.parse(localStorage.getItem("aktifKullanici")) || null;
-
-function kaydet(){
-  localStorage.setItem("stoklar", JSON.stringify(stoklar));
-  localStorage.setItem("projeler", JSON.stringify(projeler));
-  localStorage.setItem("kullanicilar", JSON.stringify(kullanicilar));
-}
 
 function kodUret(){
   return "STK-" + Math.floor(10000000 + Math.random() * 90000000);
@@ -154,7 +153,7 @@ function giris(){
   panelAc();
 }
 
-function panelAc(){
+async function panelAc(){
   document.getElementById("login").style.display = "none";
   document.getElementById("panel").style.display = "block";
   document.getElementById("aktifKullanici").innerText = aktif.user + " / " + aktif.rol;
@@ -165,7 +164,7 @@ function panelAc(){
     document.getElementById("adminBtn").style.display = "inline-block";
   }
 
-  tumunuGoster();
+  await verileriCek();
 }
 
 function cikis(){
@@ -181,7 +180,26 @@ function sayfaAc(id){
   tumunuGoster();
 }
 
-function malzemeEkle(){
+async function verileriCek(){
+  const stokRes = await db.from("stoklar").select("*").order("id", { ascending: false });
+  const projeRes = await db.from("projeler").select("*").order("id", { ascending: false });
+
+  if(stokRes.error){
+    alert("Stoklar çekilemedi: " + stokRes.error.message);
+    return;
+  }
+
+  if(projeRes.error){
+    alert("Projeler çekilemedi: " + projeRes.error.message);
+    return;
+  }
+
+  stoklar = stokRes.data || [];
+  projeler = projeRes.data || [];
+  tumunuGoster();
+}
+
+async function malzemeEkle(){
   if(aktif.rol !== "admin"){
     alert("Sadece admin malzeme ekleyebilir.");
     return;
@@ -197,7 +215,7 @@ function malzemeEkle(){
     return;
   }
 
-  stoklar.unshift({
+  const { error } = await db.from("stoklar").insert({
     kod: kodUret(),
     isim,
     kategori,
@@ -205,39 +223,59 @@ function malzemeEkle(){
     min
   });
 
-  kaydet();
+  if(error){
+    alert("Ekleme hatası: " + error.message);
+    return;
+  }
 
   document.getElementById("isim").value = "";
   document.getElementById("kategori").value = "";
   document.getElementById("adet").value = "";
   document.getElementById("min").value = "";
 
-  tumunuGoster();
+  await verileriCek();
 }
 
-function stokDegistir(i, miktar){
+async function stokDegistir(i, miktar){
   if(aktif.rol !== "admin"){
     alert("Sadece admin stok değiştirebilir.");
     return;
   }
 
-  stoklar[i].adet += miktar;
-  if(stoklar[i].adet < 0) stoklar[i].adet = 0;
-  kaydet();
-  tumunuGoster();
+  const stok = stoklar[i];
+  let yeniAdet = stok.adet + miktar;
+  if(yeniAdet < 0) yeniAdet = 0;
+
+  const { error } = await db.from("stoklar")
+    .update({ adet: yeniAdet })
+    .eq("id", stok.id);
+
+  if(error){
+    alert("Güncelleme hatası: " + error.message);
+    return;
+  }
+
+  await verileriCek();
 }
 
-function stokSil(i){
+async function stokSil(i){
   if(aktif.rol !== "admin"){
     alert("Sadece admin silebilir.");
     return;
   }
 
-  if(confirm("Bu stoğu silmek istiyor musun?")){
-    stoklar.splice(i, 1);
-    kaydet();
-    tumunuGoster();
+  if(!confirm("Bu stoğu silmek istiyor musun?")) return;
+
+  const { error } = await db.from("stoklar")
+    .delete()
+    .eq("id", stoklar[i].id);
+
+  if(error){
+    alert("Silme hatası: " + error.message);
+    return;
   }
+
+  await verileriCek();
 }
 
 function stokGoster(){
@@ -270,7 +308,7 @@ function stokGoster(){
   }).join("");
 }
 
-function projeEkle(){
+async function projeEkle(){
   const ad = document.getElementById("projeAdi").value.trim();
   const sorumlu = document.getElementById("projeSorumlu").value.trim();
 
@@ -279,48 +317,20 @@ function projeEkle(){
     return;
   }
 
-  projeler.unshift({
-    id: Date.now(),
+  const { error } = await db.from("projeler").insert({
     ad,
-    sorumlu,
-    stoklar: []
+    sorumlu
   });
 
-  kaydet();
+  if(error){
+    alert("Proje ekleme hatası: " + error.message);
+    return;
+  }
+
   document.getElementById("projeAdi").value = "";
   document.getElementById("projeSorumlu").value = "";
-  tumunuGoster();
-}
 
-function stoguProjeyeBagla(){
-  const projeId = Number(document.getElementById("projeSec").value);
-  const stokKod = document.getElementById("stokSec").value;
-  const adet = Number(document.getElementById("bagAdet").value);
-
-  const proje = projeler.find(p => p.id === projeId);
-  const stok = stoklar.find(s => s.kod === stokKod);
-
-  if(!proje || !stok || adet <= 0){
-    alert("Alanları doğru seç.");
-    return;
-  }
-
-  if(stok.adet < adet){
-    alert("Bu kadar stok yok.");
-    return;
-  }
-
-  stok.adet -= adet;
-
-  proje.stoklar.push({
-    kod: stok.kod,
-    isim: stok.isim,
-    adet
-  });
-
-  kaydet();
-  document.getElementById("bagAdet").value = "";
-  tumunuGoster();
+  await verileriCek();
 }
 
 function projeGoster(){
@@ -329,49 +339,23 @@ function projeGoster(){
   ).join("");
 
   document.getElementById("stokSec").innerHTML = stoklar.map(s =>
-    `<option value="${s.kod}">${s.isim} / ${s.adet} adet</option>`
+    `<option value="${s.id}">${s.isim} / ${s.adet} adet</option>`
   ).join("");
 
   document.getElementById("projeListe").innerHTML = projeler.map(p => `
     <div class="project-card">
       <h3>${p.ad}</h3>
       <p>Sorumlu: ${p.sorumlu}</p>
-      <h4>Bağlı Stoklar</h4>
-      ${
-        p.stoklar.length
-        ? p.stoklar.map(s => `<p>${s.isim} - ${s.adet} adet</p>`).join("")
-        : "<p>Henüz stok bağlanmadı.</p>"
-      }
     </div>
   `).join("");
 }
 
-function kullaniciEkle(){
-  if(aktif.rol !== "admin") return;
-
-  const user = document.getElementById("yeniUser").value.trim();
-  const pass = document.getElementById("yeniPass").value.trim();
-  const rol = document.getElementById("yeniRol").value;
-
-  if(!user || !pass){
-    alert("Kullanıcı adı ve şifre gerekli.");
-    return;
-  }
-
-  kullanicilar.push({ user, pass, rol });
-  kaydet();
-  tumunuGoster();
+async function stoguProjeyeBagla(){
+  alert("Bu özellik için üçüncü tablo lazım: proje_stoklari. Onu birazdan ekleyeceğiz.");
 }
 
-function kullaniciSil(i){
-  if(kullanicilar[i].user === "admin"){
-    alert("Ana admin silinemez.");
-    return;
-  }
-
-  kullanicilar.splice(i, 1);
-  kaydet();
-  tumunuGoster();
+function kullaniciEkle(){
+  alert("Gerçek kullanıcı sistemi için Supabase Auth bağlamamız lazım. Sonraki level.");
 }
 
 function kullaniciGoster(){
@@ -379,7 +363,7 @@ function kullaniciGoster(){
     <tr>
       <td>${k.user}</td>
       <td>${k.rol}</td>
-      <td><button class="delete" onclick="kullaniciSil(${i})">Sil</button></td>
+      <td>-</td>
     </tr>
   `).join("");
 }
@@ -389,7 +373,6 @@ function dashboardGoster(){
   document.getElementById("kritik").innerText = stoklar.filter(s => s.adet <= s.min).length;
   document.getElementById("projeSayisi").innerText = projeler.length;
   document.getElementById("kullaniciSayisi").innerText = kullanicilar.length;
-
   grafikCiz();
 }
 
@@ -400,16 +383,14 @@ function grafikCiz(){
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const max = Math.max(...stoklar.map(s => s.adet), 1);
-  const barWidth = 60;
-  const gap = 25;
 
   stoklar.slice(0, 8).forEach((s, i) => {
     const h = (s.adet / max) * 210;
-    const x = 50 + i * (barWidth + gap);
+    const x = 50 + i * 90;
     const y = 250 - h;
 
     ctx.fillStyle = s.adet <= s.min ? "#ef4444" : "#38bdf8";
-    ctx.fillRect(x, y, barWidth, h);
+    ctx.fillRect(x, y, 55, h);
 
     ctx.fillStyle = "#e5e7eb";
     ctx.font = "12px Arial";
@@ -435,6 +416,3 @@ if(aktif){
   panelAc();
 }
 </script>
-
-</body>
-</html>
