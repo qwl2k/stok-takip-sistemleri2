@@ -2,66 +2,135 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
-  <title>Atölye Stok Takip</title>
+  <title>Atölye Stok Takip Pro</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
 
 <div id="login">
   <div class="login-card">
-    <h1>Atölye Stok Takip</h1>
-    <p>Admin paneline giriş yap</p>
-    <input id="user" placeholder="Kullanıcı adı">
-    <input id="pass" type="password" placeholder="Şifre">
+    <h1>Atölye Stok Pro</h1>
+    <p>Giriş yap</p>
+    <input id="loginUser" placeholder="Kullanıcı adı">
+    <input id="loginPass" type="password" placeholder="Şifre">
     <button onclick="giris()">Giriş Yap</button>
-    <small>Demo: admin / 1234</small>
+    <small>Admin: admin / 1234<br>Kullanıcı: user / 1234</small>
   </div>
 </div>
 
 <div id="panel" style="display:none;">
   <header>
-    <h1>Atölye Stok Paneli</h1>
+    <div>
+      <h1>Atölye Stok Paneli</h1>
+      <p id="aktifKullanici"></p>
+    </div>
     <button onclick="cikis()">Çıkış</button>
   </header>
 
-  <section class="stats">
-    <div><span>Toplam Malzeme</span><b id="toplam">0</b></div>
-    <div><span>Kritik Stok</span><b id="kritik">0</b></div>
-    <div><span>Kategori</span><b id="kategoriSayisi">0</b></div>
+  <nav>
+    <button onclick="sayfaAc('dashboard')">Ana Panel</button>
+    <button onclick="sayfaAc('stok')">Stoklar</button>
+    <button onclick="sayfaAc('proje')">Projeler</button>
+    <button id="adminBtn" onclick="sayfaAc('kullanici')">Kullanıcılar</button>
+  </nav>
+
+  <section id="dashboard" class="page">
+    <div class="stats">
+      <div><span>Toplam Malzeme</span><b id="toplam">0</b></div>
+      <div><span>Kritik Stok</span><b id="kritik">0</b></div>
+      <div><span>Toplam Proje</span><b id="projeSayisi">0</b></div>
+      <div><span>Kullanıcı</span><b id="kullaniciSayisi">0</b></div>
+    </div>
+
+    <div class="chart-box">
+      <h2>Stok Grafiği</h2>
+      <canvas id="stokGrafik" width="900" height="300"></canvas>
+    </div>
   </section>
 
-  <section class="form-box">
-    <input id="isim" placeholder="Malzeme adı">
-    <input id="kategori" placeholder="Kategori">
-    <input id="adet" type="number" placeholder="Adet">
-    <input id="min" type="number" placeholder="Kritik sınır">
-    <button onclick="ekle()">Malzeme Ekle</button>
+  <section id="stok" class="page hidden">
+    <div class="form-box">
+      <input id="isim" placeholder="Malzeme adı">
+      <input id="kategori" placeholder="Kategori">
+      <input id="adet" type="number" placeholder="Adet">
+      <input id="min" type="number" placeholder="Kritik sınır">
+      <button onclick="malzemeEkle()">Malzeme Ekle</button>
+    </div>
+
+    <div class="search-box">
+      <input id="arama" oninput="stokGoster()" placeholder="Kod, isim veya kategori ara...">
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Kod</th>
+          <th>Malzeme</th>
+          <th>Kategori</th>
+          <th>Adet</th>
+          <th>Durum</th>
+          <th>İşlem</th>
+        </tr>
+      </thead>
+      <tbody id="stokListe"></tbody>
+    </table>
   </section>
 
-  <section class="search-box">
-    <input id="arama" oninput="goster()" placeholder="Kod, isim veya kategori ara...">
+  <section id="proje" class="page hidden">
+    <div class="form-box">
+      <input id="projeAdi" placeholder="Proje adı">
+      <input id="projeSorumlu" placeholder="Sorumlu kişi">
+      <button onclick="projeEkle()">Proje Ekle</button>
+    </div>
+
+    <div class="form-box">
+      <select id="projeSec"></select>
+      <select id="stokSec"></select>
+      <input id="bagAdet" type="number" placeholder="Kullanılacak adet">
+      <button onclick="stoguProjeyeBagla()">Stoku Projeye Bağla</button>
+    </div>
+
+    <div id="projeListe" class="project-list"></div>
   </section>
 
-  <table>
-    <thead>
-      <tr>
-        <th>Kod</th>
-        <th>Malzeme</th>
-        <th>Kategori</th>
-        <th>Adet</th>
-        <th>Durum</th>
-        <th>Sil</th>
-      </tr>
-    </thead>
-    <tbody id="liste"></tbody>
-  </table>
+  <section id="kullanici" class="page hidden">
+    <div class="form-box">
+      <input id="yeniUser" placeholder="Yeni kullanıcı adı">
+      <input id="yeniPass" placeholder="Şifre">
+      <select id="yeniRol">
+        <option value="user">Kullanıcı</option>
+        <option value="admin">Admin</option>
+      </select>
+      <button onclick="kullaniciEkle()">Kullanıcı Ekle</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Kullanıcı</th>
+          <th>Rol</th>
+          <th>Sil</th>
+        </tr>
+      </thead>
+      <tbody id="kullaniciListe"></tbody>
+    </table>
+  </section>
 </div>
 
 <script>
-let stok = JSON.parse(localStorage.getItem("stok")) || [];
+let stoklar = JSON.parse(localStorage.getItem("stoklar")) || [];
+let projeler = JSON.parse(localStorage.getItem("projeler")) || [];
+let kullanicilar = JSON.parse(localStorage.getItem("kullanicilar")) || [
+  { user: "admin", pass: "1234", rol: "admin" },
+  { user: "user", pass: "1234", rol: "user" }
+];
+
+let aktif = JSON.parse(localStorage.getItem("aktifKullanici")) || null;
 
 function kaydet(){
-  localStorage.setItem("stok", JSON.stringify(stok));
+  localStorage.setItem("stoklar", JSON.stringify(stoklar));
+  localStorage.setItem("projeler", JSON.stringify(projeler));
+  localStorage.setItem("kullanicilar", JSON.stringify(kullanicilar));
 }
 
 function kodUret(){
@@ -69,24 +138,54 @@ function kodUret(){
 }
 
 function giris(){
-  const user = document.getElementById("user").value;
-  const pass = document.getElementById("pass").value;
+  const user = document.getElementById("loginUser").value.trim();
+  const pass = document.getElementById("loginPass").value.trim();
 
-  if(user === "admin" && pass === "1234"){
-    document.getElementById("login").style.display = "none";
-    document.getElementById("panel").style.display = "block";
-    goster();
-  } else {
+  const bulunan = kullanicilar.find(k => k.user === user && k.pass === pass);
+
+  if(!bulunan){
     alert("Hatalı giriş.");
+    return;
   }
+
+  aktif = bulunan;
+  localStorage.setItem("aktifKullanici", JSON.stringify(aktif));
+  panelAc();
+}
+
+function panelAc(){
+  document.getElementById("login").style.display = "none";
+  document.getElementById("panel").style.display = "block";
+  document.getElementById("aktifKullanici").innerText = aktif.user + " / " + aktif.rol;
+
+  if(aktif.rol !== "admin"){
+    document.getElementById("adminBtn").style.display = "none";
+  } else {
+    document.getElementById("adminBtn").style.display = "inline-block";
+  }
+
+  tumunuGoster();
 }
 
 function cikis(){
+  aktif = null;
+  localStorage.removeItem("aktifKullanici");
   document.getElementById("panel").style.display = "none";
   document.getElementById("login").style.display = "flex";
 }
 
-function ekle(){
+function sayfaAc(id){
+  document.querySelectorAll(".page").forEach(p => p.classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
+  tumunuGoster();
+}
+
+function malzemeEkle(){
+  if(aktif.rol !== "admin"){
+    alert("Sadece admin malzeme ekleyebilir.");
+    return;
+  }
+
   const isim = document.getElementById("isim").value.trim();
   const kategori = document.getElementById("kategori").value.trim();
   const adet = Number(document.getElementById("adet").value);
@@ -97,7 +196,7 @@ function ekle(){
     return;
   }
 
-  stok.unshift({
+  stoklar.unshift({
     kod: kodUret(),
     isim,
     kategori,
@@ -112,50 +211,228 @@ function ekle(){
   document.getElementById("adet").value = "";
   document.getElementById("min").value = "";
 
-  goster();
+  tumunuGoster();
 }
 
-function sil(i){
-  if(confirm("Bu malzemeyi silmek istiyor musun?")){
-    stok.splice(i, 1);
+function stokDegistir(i, miktar){
+  if(aktif.rol !== "admin"){
+    alert("Sadece admin stok değiştirebilir.");
+    return;
+  }
+
+  stoklar[i].adet += miktar;
+  if(stoklar[i].adet < 0) stoklar[i].adet = 0;
+  kaydet();
+  tumunuGoster();
+}
+
+function stokSil(i){
+  if(aktif.rol !== "admin"){
+    alert("Sadece admin silebilir.");
+    return;
+  }
+
+  if(confirm("Bu stoğu silmek istiyor musun?")){
+    stoklar.splice(i, 1);
     kaydet();
-    goster();
+    tumunuGoster();
   }
 }
 
-function goster(){
+function stokGoster(){
   const arama = document.getElementById("arama")?.value.toLowerCase() || "";
 
-  const filtreli = stok.filter(x =>
-    x.kod.toLowerCase().includes(arama) ||
-    x.isim.toLowerCase().includes(arama) ||
-    x.kategori.toLowerCase().includes(arama)
+  const filtre = stoklar.filter(s =>
+    s.kod.toLowerCase().includes(arama) ||
+    s.isim.toLowerCase().includes(arama) ||
+    s.kategori.toLowerCase().includes(arama)
   );
 
-  document.getElementById("liste").innerHTML = filtreli.map((x, i) => {
-    const kritik = x.adet <= x.min;
+  document.getElementById("stokListe").innerHTML = filtre.map(s => {
+    const i = stoklar.indexOf(s);
+    const kritik = s.adet <= s.min;
+
     return `
       <tr class="${kritik ? "low-row" : ""}">
-        <td>${x.kod}</td>
-        <td>${x.isim}</td>
-        <td>${x.kategori}</td>
-        <td>${x.adet}</td>
+        <td>${s.kod}</td>
+        <td>${s.isim}</td>
+        <td>${s.kategori}</td>
         <td>
-          <span class="${kritik ? "badge danger" : "badge good"}">
-            ${kritik ? "Kritik" : "Yeterli"}
-          </span>
+          <button onclick="stokDegistir(${i}, -1)">-</button>
+          ${s.adet}
+          <button onclick="stokDegistir(${i}, 1)">+</button>
         </td>
-        <td><button class="delete" onclick="sil(${stok.indexOf(x)})">Sil</button></td>
+        <td><span class="badge ${kritik ? "danger" : "good"}">${kritik ? "Kritik" : "Yeterli"}</span></td>
+        <td><button class="delete" onclick="stokSil(${i})">Sil</button></td>
       </tr>
     `;
   }).join("");
-
-  document.getElementById("toplam").innerText = stok.length;
-  document.getElementById("kritik").innerText = stok.filter(x => x.adet <= x.min).length;
-  document.getElementById("kategoriSayisi").innerText = new Set(stok.map(x => x.kategori)).size;
 }
 
-goster();
+function projeEkle(){
+  const ad = document.getElementById("projeAdi").value.trim();
+  const sorumlu = document.getElementById("projeSorumlu").value.trim();
+
+  if(!ad || !sorumlu){
+    alert("Proje adı ve sorumlu kişi gerekli.");
+    return;
+  }
+
+  projeler.unshift({
+    id: Date.now(),
+    ad,
+    sorumlu,
+    stoklar: []
+  });
+
+  kaydet();
+  document.getElementById("projeAdi").value = "";
+  document.getElementById("projeSorumlu").value = "";
+  tumunuGoster();
+}
+
+function stoguProjeyeBagla(){
+  const projeId = Number(document.getElementById("projeSec").value);
+  const stokKod = document.getElementById("stokSec").value;
+  const adet = Number(document.getElementById("bagAdet").value);
+
+  const proje = projeler.find(p => p.id === projeId);
+  const stok = stoklar.find(s => s.kod === stokKod);
+
+  if(!proje || !stok || adet <= 0){
+    alert("Alanları doğru seç.");
+    return;
+  }
+
+  if(stok.adet < adet){
+    alert("Bu kadar stok yok.");
+    return;
+  }
+
+  stok.adet -= adet;
+
+  proje.stoklar.push({
+    kod: stok.kod,
+    isim: stok.isim,
+    adet
+  });
+
+  kaydet();
+  document.getElementById("bagAdet").value = "";
+  tumunuGoster();
+}
+
+function projeGoster(){
+  document.getElementById("projeSec").innerHTML = projeler.map(p =>
+    `<option value="${p.id}">${p.ad}</option>`
+  ).join("");
+
+  document.getElementById("stokSec").innerHTML = stoklar.map(s =>
+    `<option value="${s.kod}">${s.isim} / ${s.adet} adet</option>`
+  ).join("");
+
+  document.getElementById("projeListe").innerHTML = projeler.map(p => `
+    <div class="project-card">
+      <h3>${p.ad}</h3>
+      <p>Sorumlu: ${p.sorumlu}</p>
+      <h4>Bağlı Stoklar</h4>
+      ${
+        p.stoklar.length
+        ? p.stoklar.map(s => `<p>${s.isim} - ${s.adet} adet</p>`).join("")
+        : "<p>Henüz stok bağlanmadı.</p>"
+      }
+    </div>
+  `).join("");
+}
+
+function kullaniciEkle(){
+  if(aktif.rol !== "admin") return;
+
+  const user = document.getElementById("yeniUser").value.trim();
+  const pass = document.getElementById("yeniPass").value.trim();
+  const rol = document.getElementById("yeniRol").value;
+
+  if(!user || !pass){
+    alert("Kullanıcı adı ve şifre gerekli.");
+    return;
+  }
+
+  kullanicilar.push({ user, pass, rol });
+  kaydet();
+  tumunuGoster();
+}
+
+function kullaniciSil(i){
+  if(kullanicilar[i].user === "admin"){
+    alert("Ana admin silinemez.");
+    return;
+  }
+
+  kullanicilar.splice(i, 1);
+  kaydet();
+  tumunuGoster();
+}
+
+function kullaniciGoster(){
+  document.getElementById("kullaniciListe").innerHTML = kullanicilar.map((k, i) => `
+    <tr>
+      <td>${k.user}</td>
+      <td>${k.rol}</td>
+      <td><button class="delete" onclick="kullaniciSil(${i})">Sil</button></td>
+    </tr>
+  `).join("");
+}
+
+function dashboardGoster(){
+  document.getElementById("toplam").innerText = stoklar.length;
+  document.getElementById("kritik").innerText = stoklar.filter(s => s.adet <= s.min).length;
+  document.getElementById("projeSayisi").innerText = projeler.length;
+  document.getElementById("kullaniciSayisi").innerText = kullanicilar.length;
+
+  grafikCiz();
+}
+
+function grafikCiz(){
+  const canvas = document.getElementById("stokGrafik");
+  const ctx = canvas.getContext("2d");
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const max = Math.max(...stoklar.map(s => s.adet), 1);
+  const barWidth = 60;
+  const gap = 25;
+
+  stoklar.slice(0, 8).forEach((s, i) => {
+    const h = (s.adet / max) * 210;
+    const x = 50 + i * (barWidth + gap);
+    const y = 250 - h;
+
+    ctx.fillStyle = s.adet <= s.min ? "#ef4444" : "#38bdf8";
+    ctx.fillRect(x, y, barWidth, h);
+
+    ctx.fillStyle = "#e5e7eb";
+    ctx.font = "12px Arial";
+    ctx.fillText(s.isim.slice(0, 8), x, 275);
+    ctx.fillText(s.adet, x + 18, y - 8);
+  });
+}
+
+function tumunuGoster(){
+  dashboardGoster();
+  stokGoster();
+  projeGoster();
+  kullaniciGoster();
+}
+
+document.addEventListener("keydown", e => {
+  if(e.key === "Enter" && document.getElementById("login").style.display !== "none"){
+    giris();
+  }
+});
+
+if(aktif){
+  panelAc();
+}
 </script>
 
 </body>
