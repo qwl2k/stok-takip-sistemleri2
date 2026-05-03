@@ -8,6 +8,8 @@
 </head>
 <body>
 
+<div id="toast"></div>
+
 <div id="login">
   <div class="login-card">
     <h1>Atölye Stok Pro</h1>
@@ -95,16 +97,6 @@
   </section>
 
   <section id="kullanici" class="page hidden">
-    <div class="form-box">
-      <input id="yeniUser" placeholder="Yeni kullanıcı e-postası">
-      <input id="yeniPass" placeholder="Şifre">
-      <select id="yeniRol">
-        <option value="user">Kullanıcı</option>
-        <option value="admin">Admin</option>
-      </select>
-      <button onclick="kullaniciEkle()">Kullanıcı Ekle</button>
-    </div>
-
     <table>
       <thead>
         <tr>
@@ -127,6 +119,14 @@ let aktif = JSON.parse(localStorage.getItem("aktifKullanici")) || null;
 let stoklar = [];
 let projeler = [];
 
+function mesaj(text, type = "ok"){
+  const toast = document.getElementById("toast");
+  toast.innerText = text;
+  toast.className = type;
+  toast.style.display = "block";
+  setTimeout(() => toast.style.display = "none", 2500);
+}
+
 function kodUret(){
   return "STK-" + Math.floor(10000000 + Math.random() * 90000000);
 }
@@ -135,13 +135,10 @@ async function giris(){
   const email = document.getElementById("loginUser").value.trim();
   const password = document.getElementById("loginPass").value.trim();
 
-  const { data, error } = await db.auth.signInWithPassword({
-    email,
-    password
-  });
+  const { data, error } = await db.auth.signInWithPassword({ email, password });
 
   if(error){
-    alert("Giriş hatası: " + error.message);
+    mesaj("Giriş hatası: " + error.message, "error");
     return;
   }
 
@@ -151,6 +148,7 @@ async function giris(){
   };
 
   localStorage.setItem("aktifKullanici", JSON.stringify(aktif));
+  mesaj("Giriş başarılı.");
   panelAc();
 }
 
@@ -168,6 +166,7 @@ async function cikis(){
   localStorage.removeItem("aktifKullanici");
   document.getElementById("panel").style.display = "none";
   document.getElementById("login").style.display = "flex";
+  mesaj("Çıkış yapıldı.");
 }
 
 function sayfaAc(id){
@@ -181,12 +180,12 @@ async function verileriCek(){
   const projeRes = await db.from("projeler").select("*").order("id", { ascending: false });
 
   if(stokRes.error){
-    alert("Stok hatası: " + stokRes.error.message);
+    mesaj("Stok hatası: " + stokRes.error.message, "error");
     return;
   }
 
   if(projeRes.error){
-    alert("Proje hatası: " + projeRes.error.message);
+    mesaj("Proje hatası: " + projeRes.error.message, "error");
     return;
   }
 
@@ -197,7 +196,7 @@ async function verileriCek(){
 
 async function malzemeEkle(){
   if(aktif.rol !== "admin"){
-    alert("Sadece admin malzeme ekleyebilir.");
+    mesaj("Sadece admin malzeme ekleyebilir.", "error");
     return;
   }
 
@@ -207,7 +206,7 @@ async function malzemeEkle(){
   const min = Number(document.getElementById("min").value);
 
   if(!isim || !kategori || adet < 0 || min < 0){
-    alert("Tüm alanları doğru doldur.");
+    mesaj("Tüm alanları doğru doldur.", "error");
     return;
   }
 
@@ -220,7 +219,7 @@ async function malzemeEkle(){
   });
 
   if(error){
-    alert("Ekleme hatası: " + error.message);
+    mesaj("Ekleme hatası: " + error.message, "error");
     return;
   }
 
@@ -229,12 +228,13 @@ async function malzemeEkle(){
   document.getElementById("adet").value = "";
   document.getElementById("min").value = "";
 
+  mesaj("Malzeme eklendi.");
   await verileriCek();
 }
 
 async function stokDegistir(i, miktar){
   if(aktif.rol !== "admin"){
-    alert("Sadece admin stok değiştirebilir.");
+    mesaj("Sadece admin stok değiştirebilir.", "error");
     return;
   }
 
@@ -247,16 +247,17 @@ async function stokDegistir(i, miktar){
     .eq("id", stok.id);
 
   if(error){
-    alert("Güncelleme hatası: " + error.message);
+    mesaj("Güncelleme hatası: " + error.message, "error");
     return;
   }
 
+  mesaj("Stok güncellendi.");
   await verileriCek();
 }
 
 async function stokSil(i){
   if(aktif.rol !== "admin"){
-    alert("Sadece admin silebilir.");
+    mesaj("Sadece admin silebilir.", "error");
     return;
   }
 
@@ -267,10 +268,11 @@ async function stokSil(i){
     .eq("id", stoklar[i].id);
 
   if(error){
-    alert("Silme hatası: " + error.message);
+    mesaj("Silme hatası: " + error.message, "error");
     return;
   }
 
+  mesaj("Stok silindi.");
   await verileriCek();
 }
 
@@ -309,23 +311,21 @@ async function projeEkle(){
   const sorumlu = document.getElementById("projeSorumlu").value.trim();
 
   if(!ad || !sorumlu){
-    alert("Proje adı ve sorumlu kişi gerekli.");
+    mesaj("Proje adı ve sorumlu kişi gerekli.", "error");
     return;
   }
 
-  const { error } = await db.from("projeler").insert({
-    ad,
-    sorumlu
-  });
+  const { error } = await db.from("projeler").insert({ ad, sorumlu });
 
   if(error){
-    alert("Proje ekleme hatası: " + error.message);
+    mesaj("Proje ekleme hatası: " + error.message, "error");
     return;
   }
 
   document.getElementById("projeAdi").value = "";
   document.getElementById("projeSorumlu").value = "";
 
+  mesaj("Proje eklendi.");
   await verileriCek();
 }
 
@@ -336,12 +336,12 @@ async function stoguProjeyeBagla(){
   const stok = stoklar.find(s => s.id === stokId);
 
   if(!projeId || !stok || adet <= 0){
-    alert("Alanları doğru doldur.");
+    mesaj("Alanları doğru doldur.", "error");
     return;
   }
 
   if(stok.adet < adet){
-    alert("Yeterli stok yok.");
+    mesaj("Yeterli stok yok.", "error");
     return;
   }
 
@@ -353,7 +353,7 @@ async function stoguProjeyeBagla(){
   });
 
   if(bagError){
-    alert("Projeye stok bağlama hatası: " + bagError.message);
+    mesaj("Projeye stok bağlama hatası: " + bagError.message, "error");
     return;
   }
 
@@ -362,11 +362,12 @@ async function stoguProjeyeBagla(){
     .eq("id", stok.id);
 
   if(stokError){
-    alert("Stok azaltma hatası: " + stokError.message);
+    mesaj("Stok azaltma hatası: " + stokError.message, "error");
     return;
   }
 
   document.getElementById("bagAdet").value = "";
+  mesaj("Stok projeye bağlandı.");
   await verileriCek();
 }
 
@@ -398,10 +399,6 @@ async function projeGoster(){
       </div>
     `;
   }).join("");
-}
-
-async function kullaniciEkle(){
-  alert("Yeni kullanıcı eklemek için şimdilik Supabase panelinden Authentication > Users bölümünü kullan.");
 }
 
 function kullaniciGoster(){
